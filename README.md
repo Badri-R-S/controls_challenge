@@ -3,6 +3,15 @@
 
 Machine learning models can drive cars, paint beautiful pictures and write passable rap. But they famously suck at doing low level controls. Your goal is to write a good controller. This repo contains a model that simulates the lateral movement of a car, given steering commands. The goal is to drive this "car" well for a given desired trajectory.
 
+## Solution
+### First Approach
+Set up an RL environment that reads from the dataset at every timestep, after combining all the data files. To be more specific the RL agent reads the data and predicts a steering angle. Used that steering angle to predict lateral acceleration and computed costs. The agent was set up to drive the cost down as low as possible. To expedite convergence, a behavioral cloning training was also done with the data that had steering command values. This network was used as a baseline to train the actual RL agent using PPO. The performance was nowhere near the baseline and it was also very slow at predicting steering values at every timestep. I suspect that the uneven distribution of each data file (not i.i.d) could have disrupted the network's learning.
+
+### Second Approach
+A more classical method, an MPC controller, uses an initial guess for steering command values for 10 future states. Accumulated cost for all these states and finally used a convex optimization solver to minimize this accumulated cost. The performance was decent, but it was still far away from the baseline PID. This could be due to the inability of the controller to directly relate the effect of steering command on the lateral acceleration (due to the presence of a black-box ONNX system dynamics model). Also, we aren't directly using the action to compute cost, which could add to it. This could also be the reason why also the Particle swarm optimization approach that I tried failed. It was very slow and the outputs were very jerky, accumulating high jerk costs.
+
+### Third Approach
+Finally decided the best way to go forward is to optimize the Kp, Ki and Kd values of the baseline PID controller since no other method even came close to its performance. Similar to MPC, used the Kp, Ki, Kd values as initial guess and simulated for 10 future states, and optimized the accumulated costs using SLSQP, for every step (Refer to optim.py). Worked really well and it managed to beat the baseline.
 
 ## Geting Started
 We'll be using a synthetic dataset based on the [comma-steering-control](https://github.com/commaai/comma-steering-control) dataset for this challenge. These are actual routes with actual car and road states.
